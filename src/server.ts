@@ -3,51 +3,72 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import connectDB from './config/db';
+import connectDB from './config/db'; 
+import { routes } from "./routes/routes"; 
 
-// Load environment variables
-dotenv.config();
+class ChatServer {
+    private app: express.Application;
+    private server: http.Server;
+    private io: Server;
 
-// Connect to the database
-connectDB();
+    constructor() {
+        this.app = express();
+        this.server = http.createServer(this.app);
+        this.io = new Server(this.server, { /* options */ });
+        
+        // Load environment variables
+        dotenv.config();
 
-const app = express();
-const server = http.createServer(app);
+        // Connect to the database
+        connectDB();
+    }
 
-// Setup CORS
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-};
-app.use(cors(corsOptions));
+    private middlewares() {
+        // Middleware
+        this.app.use(express.json());
+        // Setup CORS
+        const corsOptions = {
+            origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+            methods: ["GET", "POST", "PUT", "DELETE"],
+        };
+        this.app.use(cors(corsOptions));
+    }
+    
+    private routes() {
+        // Routes for controllers 
+        this.app.use('/api', routes);
+    }
 
-// Initialize Socket.IO
-const io = new Server(server, {
-  cors: corsOptions,
-});
+    private sockets() {
+        // Socket.IO connection handling
+        this.io.on('connection', (socket) => {
+            console.log('A user connected:', socket.id);
 
-// Middleware
-app.use(express.json());
+            socket.on('disconnect', () => {
+                console.log('User disconnected:', socket.id);
+            });
+            
+            // We will add our custom events here in later phases
+        });
+    }
+    
+    public listen() {
+        const port = process.env.PORT || 5000;
+        this.server.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+        });
+    }
 
-// Basic route for testing
-app.get('/', (req, res) => {
-  res.send('Server is running...');
-});
+    public run() {
+      this.middlewares();
+      this.routes();
+      this.sockets();
+      this.listen();
+    }
+}
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
-
-  // We will add our custom events here in later phases
-});
+// Create a new instance of ChatServer and start it
+const server: ChatServer = new ChatServer();
+server.run();
 
 
-const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
