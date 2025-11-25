@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { User } from "../models/user";
 import bcrypt from "bcrypt";
+import { HydratedDocument } from "mongoose";
 
 export const signup = async (req: Request, res: Response) => {
     const { user_name, password } = req.body;
@@ -51,4 +52,17 @@ export const login = async (req: Request, res: Response) => {
         console.error(`${new Date().toLocaleString()} - Auth: Login failed: ${error}`);
         res.status(500).json({ msg: `Auth: Login failed: ${error.message}` });
     }
+};
+
+export const verifyUserSession = async (req: Request, res: Response, next: NextFunction) => {
+    const token:string = req.headers['authorization'] as string;
+    const user =  User.verify_token(token);
+
+    if(!user){
+        return res.status(401).send('Unauthorized');
+    }
+
+    req.body.user = user;
+
+    next();
 };

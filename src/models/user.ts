@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model, Document, CallbackError} from "mongoose";
+import mongoose, { Schema, Model, Document, CallbackError, HydrateOptions, HydratedDocument} from "mongoose";
 import bcrypt from "bcrypt";
 import jwt, {JsonWebTokenError, JwtPayload, sign, verify, VerifyErrors} from "jsonwebtoken";
 
@@ -16,6 +16,10 @@ export interface IUserJwtPayload extends JwtPayload{
     user_id: string;
     user_name: string;
 };
+
+export interface IUserModel extends Model<IUser>{
+    verify_token(token: string): Promise<HydratedDocument<IUser> | null>;
+}
 
 const schema = new Schema({
     user_name: {type: String, required: true, unique: true },
@@ -47,11 +51,11 @@ schema.method('generate_token', async function(): Promise<string> {
     return sign(payload, SECRET_KEY, {expiresIn: '2h'});
 });
 
-schema.method('verify_token', async function(token: string): Promise<IUser | null> {
+schema.static('verify_token', async function(token: string): Promise<HydratedDocument<IUser> | null> {
     try {
-        const decoded = jwt.verify(token, SECRET_KEY) as IUserJwtPayload;
+        const decoded = jwt.verify(token, SECRET_KEY as string) as IUserJwtPayload;
         
-        const user = await User.findById(decoded.user_id);
+        const user = await this.findById(decoded.user_id);
         if (!user || user._id)
             return null;
         return user;
@@ -61,4 +65,4 @@ schema.method('verify_token', async function(token: string): Promise<IUser | nul
     }
 });
 
-export const User : Model<IUser> = mongoose.model<IUser>('User',schema);
+export const User = mongoose.model<IUser, IUserModel>('User',schema);
