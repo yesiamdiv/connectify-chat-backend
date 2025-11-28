@@ -27,6 +27,11 @@ const schema = new Schema({
     status: {type: String},
 }, {collection: 'User',timestamps: true});
 
+// Text index for search optimization
+schema.index({ user_name: 'text' });
+// Regular index for prefix searches (more efficient for autocomplete)
+schema.index({ user_name: 1 });
+
 schema.pre<IUser>('save', async function(next){
     if (!this.isModified('password')) { 
         return next();
